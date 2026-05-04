@@ -10,10 +10,11 @@ import type { ChatMessage } from "@/lib/gemini";
 
 const LS_KEY = "gemini_api_key";
 
-// Baca API key langsung dari localStorage saat dipanggil — paling reliable
-// Return undefined (bukan "") supaya server bisa fallback ke env key
-function getKey(): string | undefined {
-  return localStorage.getItem(LS_KEY) ?? undefined;
+// Baca API key dari localStorage — throw error yang jelas kalau tidak ada
+function getKey(): string {
+  const key = localStorage.getItem(LS_KEY)?.trim();
+  if (!key) throw new Error("NO_API_KEY");
+  return key;
 }
 
 // ─── API helpers — baca key dari localStorage langsung ───────────────────────
@@ -193,6 +194,12 @@ export default function AppPage() {
       setMessages([{ role: "ai", content: welcome }]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Gagal menganalisis foto";
+      // Kalau key tidak ada → paksa kembali ke setup screen
+      if (msg === "NO_API_KEY") {
+        setApiKey(null);
+        apiKeyRef.current = null;
+        return;
+      }
       setAnalyzeError(`${msg}. Pastikan foto jelas, wajah terlihat, lalu coba lagi.`);
     } finally {
       setIsAnalyzing(false);
@@ -220,8 +227,8 @@ export default function AppPage() {
         setMessages((prev) => [...prev, { role: "ai", content: reply }]);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Terjadi kesalahan";
+        if (msg === "NO_API_KEY") { setApiKey(null); apiKeyRef.current = null; return; }
         setChatError(msg);
-        // Tambah error bubble ke chat agar lebih visible
         setMessages((prev) => [
           ...prev,
           { role: "ai", content: "Maaf, saya tidak bisa membalas saat ini. Coba kirim pesan lagi ya 🙏" },
@@ -246,6 +253,7 @@ export default function AppPage() {
       setUserRequirements(reqs);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Gagal generate prompt";
+      if (msg === "NO_API_KEY") { setApiKey(null); apiKeyRef.current = null; return; }
       setGenerateError(`${msg}. Coba lagi atau tambah detail di chat terlebih dahulu.`);
       setGeneratedPrompt(null);
     } finally {
