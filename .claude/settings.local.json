@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(claude --version)",
+      "Bash(claude -v)",
+      "Bash(npm list *)",
+      "Bash(npx claude *)",
+      "Bash(where claude *)",
+      "PowerShell(Get-Command claude -ErrorAction SilentlyContinue)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(npm list -g @anthropic-ai/claude-code 2>&1)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.claude\" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | head -30)",
+      "Bash(git clone *)",
+      "Skill(claude-code-harness:harness-plan)",
+      "Skill(claude-code-harness:harness-plan:*)",
+      "Skill(claude-code-harness:harness-work)",
+      "Skill(claude-code-harness:harness-work:*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\USER\\\\Downloads\\\\Projek Claude code\\\\Ai Influencer Generate\" -Force | ForEach-Object { $_.Name })",
+      "Bash(npm run *)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git add *)"
+    ]
+  }
+}
