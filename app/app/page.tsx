@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PhotoUpload, { type PhotoData } from "@/components/PhotoUpload";
 import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
@@ -110,9 +110,10 @@ function InAppGuide() {
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AppPage() {
-  // API key — load dari localStorage saat mount
+  // API key — state untuk render, ref untuk selalu punya nilai terbaru di callbacks
   const [apiKey, setApiKey]                     = useState<string | null>(null);
   const [keyLoaded, setKeyLoaded]               = useState(false);
+  const apiKeyRef                               = useRef<string | null>(null);
 
   const [photoData, setPhotoData]               = useState<PhotoData | null>(null);
   const [photoDescription, setPhotoDescription] = useState<string | null>(null);
@@ -126,20 +127,25 @@ export default function AppPage() {
   const [isGenerating, setIsGenerating]         = useState(false);
   const [generateError, setGenerateError]       = useState<string | null>(null);
 
-  // Load API key dari localStorage
+  // Load API key dari localStorage, simpan ke ref juga
   useEffect(() => {
     const saved = localStorage.getItem(LS_KEY);
-    if (saved) setApiKey(saved);
+    if (saved) {
+      setApiKey(saved);
+      apiKeyRef.current = saved;
+    }
     setKeyLoaded(true);
   }, []);
 
   const handleKeySaved = useCallback((key: string) => {
     setApiKey(key);
+    apiKeyRef.current = key; // langsung update ref tanpa tunggu re-render
   }, []);
 
   const handleChangeKey = useCallback(() => {
     localStorage.removeItem(LS_KEY);
     setApiKey(null);
+    apiKeyRef.current = null;
   }, []);
 
   // ── Reset semua state (Task 7.2) ──────────────────────────────────────────
@@ -171,7 +177,7 @@ export default function AppPage() {
     setIsAnalyzing(true);
 
     try {
-      const description = await apiAnalyzePhoto(data.base64, data.mimeType, apiKey!);
+      const description = await apiAnalyzePhoto(data.base64, data.mimeType, apiKeyRef.current!);
       setPhotoDescription(description);
 
       setIsChatLoading(true);
@@ -179,7 +185,7 @@ export default function AppPage() {
         "Hei! Saya baru saja upload foto saya. Tolong sambut saya dan tanya apa yang ingin saya buat untuk AI influencer saya.",
         description,
         [],
-        apiKey!
+        apiKeyRef.current!
       );
       setMessages([{ role: "ai", content: welcome }]);
     } catch (err) {
@@ -207,7 +213,7 @@ export default function AppPage() {
       setIsChatLoading(true);
 
       try {
-        const reply = await apiChat(message, photoDescription, updatedHistory, apiKey!);
+        const reply = await apiChat(message, photoDescription, updatedHistory, apiKeyRef.current!);
         setMessages((prev) => [...prev, { role: "ai", content: reply }]);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Terjadi kesalahan";
@@ -232,7 +238,7 @@ export default function AppPage() {
     setGeneratedPrompt(""); // tampilkan panel dengan loading
 
     try {
-      const { prompt, userRequirements: reqs } = await apiGeneratePrompt(photoDescription, messages, apiKey!);
+      const { prompt, userRequirements: reqs } = await apiGeneratePrompt(photoDescription, messages, apiKeyRef.current!);
       setGeneratedPrompt(prompt);
       setUserRequirements(reqs);
     } catch (err) {
