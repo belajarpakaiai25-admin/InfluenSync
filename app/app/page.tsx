@@ -11,8 +11,9 @@ import type { ChatMessage } from "@/lib/gemini";
 const LS_KEY = "gemini_api_key";
 
 // Baca API key langsung dari localStorage saat dipanggil — paling reliable
-function getKey(): string {
-  return localStorage.getItem(LS_KEY) ?? "";
+// Return undefined (bukan "") supaya server bisa fallback ke env key
+function getKey(): string | undefined {
+  return localStorage.getItem(LS_KEY) ?? undefined;
 }
 
 // ─── API helpers — baca key dari localStorage langsung ───────────────────────

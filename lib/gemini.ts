@@ -9,8 +9,9 @@ const MODEL_FALLBACKS = [
 ];
 
 // Buat Gemini client — pakai user's key, fallback ke env key
+// Pakai || bukan ?? supaya empty string ("") juga fallback ke env key
 function createClient(userApiKey?: string) {
-  const key = userApiKey ?? process.env.GEMINI_API_KEY;
+  const key = (userApiKey?.trim()) || process.env.GEMINI_API_KEY;
   if (!key) throw new Error("API key tidak ditemukan. Masukkan Google AI Studio API key kamu.");
   return new GoogleGenerativeAI(key);
 }
