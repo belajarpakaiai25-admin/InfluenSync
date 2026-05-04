@@ -10,13 +10,18 @@ import type { ChatMessage } from "@/lib/gemini";
 
 const LS_KEY = "gemini_api_key";
 
-// ─── API helpers (semua kirim apiKey) ────────────────────────────────────────
+// Baca API key langsung dari localStorage saat dipanggil — paling reliable
+function getKey(): string {
+  return localStorage.getItem(LS_KEY) ?? "";
+}
 
-async function apiAnalyzePhoto(base64: string, mimeType: string, apiKey: string): Promise<string> {
+// ─── API helpers — baca key dari localStorage langsung ───────────────────────
+
+async function apiAnalyzePhoto(base64: string, mimeType: string): Promise<string> {
   const res = await fetch("/api/analyze-photo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ base64, mimeType, apiKey }),
+    body: JSON.stringify({ base64, mimeType, apiKey: getKey() }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -29,13 +34,12 @@ async function apiAnalyzePhoto(base64: string, mimeType: string, apiKey: string)
 async function apiChat(
   message: string,
   photoDescription: string,
-  history: ChatMessage[],
-  apiKey: string
+  history: ChatMessage[]
 ): Promise<string> {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, photoDescription, history, apiKey }),
+    body: JSON.stringify({ message, photoDescription, history, apiKey: getKey() }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -47,13 +51,12 @@ async function apiChat(
 
 async function apiGeneratePrompt(
   photoDescription: string,
-  history: ChatMessage[],
-  apiKey: string
+  history: ChatMessage[]
 ): Promise<{ prompt: string; userRequirements: string }> {
   const res = await fetch("/api/generate-prompt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ photoDescription, history, apiKey }),
+    body: JSON.stringify({ photoDescription, history, apiKey: getKey() }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -177,15 +180,14 @@ export default function AppPage() {
     setIsAnalyzing(true);
 
     try {
-      const description = await apiAnalyzePhoto(data.base64, data.mimeType, apiKeyRef.current!);
+      const description = await apiAnalyzePhoto(data.base64, data.mimeType);
       setPhotoDescription(description);
 
       setIsChatLoading(true);
       const welcome = await apiChat(
         "Hei! Saya baru saja upload foto saya. Tolong sambut saya dan tanya apa yang ingin saya buat untuk AI influencer saya.",
         description,
-        [],
-        apiKeyRef.current!
+        []
       );
       setMessages([{ role: "ai", content: welcome }]);
     } catch (err) {
@@ -213,7 +215,7 @@ export default function AppPage() {
       setIsChatLoading(true);
 
       try {
-        const reply = await apiChat(message, photoDescription, updatedHistory, apiKeyRef.current!);
+        const reply = await apiChat(message, photoDescription, updatedHistory);
         setMessages((prev) => [...prev, { role: "ai", content: reply }]);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Terjadi kesalahan";
@@ -238,7 +240,7 @@ export default function AppPage() {
     setGeneratedPrompt(""); // tampilkan panel dengan loading
 
     try {
-      const { prompt, userRequirements: reqs } = await apiGeneratePrompt(photoDescription, messages, apiKeyRef.current!);
+      const { prompt, userRequirements: reqs } = await apiGeneratePrompt(photoDescription, messages);
       setGeneratedPrompt(prompt);
       setUserRequirements(reqs);
     } catch (err) {
