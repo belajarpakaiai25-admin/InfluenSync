@@ -189,7 +189,7 @@ export default function AppPage() {
       setIsAnalyzing(false);
       setIsChatLoading(false);
     }
-  }, []);
+  }, [apiKey]);
 
   const handlePhotoCleared = useCallback(() => {
     handleReset();
@@ -221,7 +221,7 @@ export default function AppPage() {
         setIsChatLoading(false);
       }
     },
-    [photoDescription, messages, isChatLoading]
+    [photoDescription, messages, isChatLoading, apiKey]
   );
 
   // ── Generate prompt ───────────────────────────────────────────────────────
@@ -242,7 +242,7 @@ export default function AppPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [photoDescription, messages, isGenerating]);
+  }, [photoDescription, messages, isGenerating, apiKey]);
 
   // ── Computed states ───────────────────────────────────────────────────────
   const isReady       = !!photoDescription && !isAnalyzing;
