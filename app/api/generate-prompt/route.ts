@@ -91,9 +91,10 @@ function formatHistory(history: ChatMessage[]): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { photoDescription, history } = body as {
+    const { photoDescription, history, apiKey } = body as {
       photoDescription: string;
       history: ChatMessage[];
+      apiKey?: string;
     };
 
     if (!photoDescription) {
@@ -116,7 +117,7 @@ Extract now:`;
     const rawRequirements = await generateWithFallback(async (model) => {
       const result = await model.generateContent(extractionInput);
       return result.response.text().trim();
-    });
+    }, apiKey);
 
     // ── Step 2: Parse & build locked template ─────────────────────────────────
     const reqs = parseRequirements(rawRequirements);
@@ -137,7 +138,7 @@ Write the NanoBanana prompt now:`;
     const prompt = await generateWithFallback(async (model) => {
       const result = await model.generateContent(generationInput);
       return result.response.text().trim();
-    });
+    }, apiKey);
 
     return NextResponse.json({ prompt, userRequirements: rawRequirements });
   } catch (err) {

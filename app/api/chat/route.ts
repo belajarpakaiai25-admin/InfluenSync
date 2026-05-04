@@ -35,10 +35,11 @@ function formatHistoryForGemini(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, photoDescription, history } = body as {
+    const { message, photoDescription, history, apiKey } = body as {
       message: string;
       photoDescription: string;
       history: ChatMessage[];
+      apiKey?: string;
     };
 
     if (!message || !photoDescription) {
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
       });
       const result = await chat.sendMessage(message);
       return result.response.text().trim();
-    });
+    }, apiKey);
 
     return NextResponse.json({ reply });
   } catch (err) {

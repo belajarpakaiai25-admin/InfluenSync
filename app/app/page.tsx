@@ -1,19 +1,22 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import PhotoUpload, { type PhotoData } from "@/components/PhotoUpload";
 import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
 import PromptOutput from "@/components/PromptOutput";
+import ApiKeySetup from "@/components/ApiKeySetup";
 import type { ChatMessage } from "@/lib/gemini";
 
-// ─── API helpers ──────────────────────────────────────────────────────────────
+const LS_KEY = "gemini_api_key";
 
-async function apiAnalyzePhoto(base64: string, mimeType: string): Promise<string> {
+// ─── API helpers (semua kirim apiKey) ────────────────────────────────────────
+
+async function apiAnalyzePhoto(base64: string, mimeType: string, apiKey: string): Promise<string> {
   const res = await fetch("/api/analyze-photo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ base64, mimeType }),
+    body: JSON.stringify({ base64, mimeType, apiKey }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -26,12 +29,13 @@ async function apiAnalyzePhoto(base64: string, mimeType: string): Promise<string
 async function apiChat(
   message: string,
   photoDescription: string,
-  history: ChatMessage[]
+  history: ChatMessage[],
+  apiKey: string
 ): Promise<string> {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, photoDescription, history }),
+    body: JSON.stringify({ message, photoDescription, history, apiKey }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -43,12 +47,13 @@ async function apiChat(
 
 async function apiGeneratePrompt(
   photoDescription: string,
-  history: ChatMessage[]
+  history: ChatMessage[],
+  apiKey: string
 ): Promise<{ prompt: string; userRequirements: string }> {
   const res = await fetch("/api/generate-prompt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ photoDescription, history }),
+    body: JSON.stringify({ photoDescription, history, apiKey }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -105,6 +110,10 @@ function InAppGuide() {
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AppPage() {
+  // API key — load dari localStorage saat mount
+  const [apiKey, setApiKey]                     = useState<string | null>(null);
+  const [keyLoaded, setKeyLoaded]               = useState(false);
+
   const [photoData, setPhotoData]               = useState<PhotoData | null>(null);
   const [photoDescription, setPhotoDescription] = useState<string | null>(null);
   const [messages, setMessages]                 = useState<ChatMessage[]>([]);
@@ -116,6 +125,22 @@ export default function AppPage() {
   const [userRequirements, setUserRequirements] = useState<string | null>(null);
   const [isGenerating, setIsGenerating]         = useState(false);
   const [generateError, setGenerateError]       = useState<string | null>(null);
+
+  // Load API key dari localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) setApiKey(saved);
+    setKeyLoaded(true);
+  }, []);
+
+  const handleKeySaved = useCallback((key: string) => {
+    setApiKey(key);
+  }, []);
+
+  const handleChangeKey = useCallback(() => {
+    localStorage.removeItem(LS_KEY);
+    setApiKey(null);
+  }, []);
 
   // ── Reset semua state (Task 7.2) ──────────────────────────────────────────
   const handleReset = useCallback(() => {
@@ -146,14 +171,15 @@ export default function AppPage() {
     setIsAnalyzing(true);
 
     try {
-      const description = await apiAnalyzePhoto(data.base64, data.mimeType);
+      const description = await apiAnalyzePhoto(data.base64, data.mimeType, apiKey!);
       setPhotoDescription(description);
 
       setIsChatLoading(true);
       const welcome = await apiChat(
         "Hei! Saya baru saja upload foto saya. Tolong sambut saya dan tanya apa yang ingin saya buat untuk AI influencer saya.",
         description,
-        []
+        [],
+        apiKey!
       );
       setMessages([{ role: "ai", content: welcome }]);
     } catch (err) {
@@ -181,7 +207,7 @@ export default function AppPage() {
       setIsChatLoading(true);
 
       try {
-        const reply = await apiChat(message, photoDescription, updatedHistory);
+        const reply = await apiChat(message, photoDescription, updatedHistory, apiKey!);
         setMessages((prev) => [...prev, { role: "ai", content: reply }]);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Terjadi kesalahan";
@@ -206,7 +232,7 @@ export default function AppPage() {
     setGeneratedPrompt(""); // tampilkan panel dengan loading
 
     try {
-      const { prompt, userRequirements: reqs } = await apiGeneratePrompt(photoDescription, messages);
+      const { prompt, userRequirements: reqs } = await apiGeneratePrompt(photoDescription, messages, apiKey!);
       setGeneratedPrompt(prompt);
       setUserRequirements(reqs);
     } catch (err) {
@@ -231,10 +257,16 @@ export default function AppPage() {
     { n: "3", label: "Generate Prompt",  done: promptIsDone },
   ];
 
+  // Tunggu localStorage terbaca dulu (hindari flash)
+  if (!keyLoaded) return null;
+
+  // Belum ada API key → tampilkan setup screen
+  if (!apiKey) return <ApiKeySetup onKeySaved={handleKeySaved} />;
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
 
-      {/* ── Header + Reset button (Task 7.2) ── */}
+      {/* ── Header + action buttons ── */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
@@ -245,8 +277,18 @@ export default function AppPage() {
           </p>
         </div>
 
-        {/* Reset button — hanya muncul kalau sudah ada aktivitas */}
-        {hasActivity && (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Ganti API Key */}
+          <button
+            onClick={handleChangeKey}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/10 bg-white/5 text-white/40 text-xs hover:text-white/70 hover:border-white/20 transition-all"
+            title="Ganti API Key"
+          >
+            🔑 <span className="hidden sm:inline">Ganti Key</span>
+          </button>
+
+          {/* Reset button — hanya muncul kalau sudah ada aktivitas */}
+          {hasActivity && (
           <button
             onClick={handleReset}
             className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/10 bg-white/5 text-white/50 text-xs font-medium hover:border-red-500/30 hover:text-red-300 hover:bg-red-500/5 transition-all"
@@ -256,7 +298,8 @@ export default function AppPage() {
             </svg>
             Mulai Ulang
           </button>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ── In-app guide — hanya tampil sebelum upload foto (Task 7.4) ── */}

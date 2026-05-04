@@ -31,7 +31,7 @@ OUTPUT FORMAT:
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { base64, mimeType } = body as { base64: string; mimeType: string };
+    const { base64, mimeType, apiKey } = body as { base64: string; mimeType: string; apiKey?: string };
 
     if (!base64 || !mimeType) {
       return NextResponse.json(
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         { inlineData: { data: base64, mimeType } },
       ]);
       return result.response.text().trim();
-    });
+    }, apiKey);
 
     return NextResponse.json({ description });
   } catch (err) {
