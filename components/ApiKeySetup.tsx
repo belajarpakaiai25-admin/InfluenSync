@@ -18,8 +18,8 @@ export default function ApiKeySetup({ onKeySaved }: ApiKeySetupProps) {
       setError("API key tidak boleh kosong.");
       return;
     }
-    if (!trimmed.startsWith("AIza")) {
-      setError("Format API key tidak valid. Harus dimulai dengan 'AIza...'");
+    if (!trimmed.startsWith("AIza") && !trimmed.toLowerCase().startsWith("aq")) {
+      setError("Format API key tidak valid. Harus dimulai dengan 'AIza...' atau 'AQ...'");
       return;
     }
 
@@ -117,7 +117,7 @@ export default function ApiKeySetup({ onKeySaved }: ApiKeySetupProps) {
                     setError(null);
                   }}
                   onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                  placeholder="AIzaSy..."
+                  placeholder="AIzaSy... atau AQ..."
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 pr-10 font-mono transition-colors"
                 />
                 <button
