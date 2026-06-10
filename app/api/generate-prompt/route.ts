@@ -60,27 +60,38 @@ function buildLockedTemplate(
   if (reqs.VIBE) parts.push(`VIBE (LOCKED — do not change): ${reqs.VIBE}`);
   if (reqs.OTHER) parts.push(`OTHER REQUIREMENTS (LOCKED): ${reqs.OTHER}`);
 
-  // Fields Gemini needs to fill
-  parts.push(`LIGHTING: [you fill this — must match the background and vibe above]`);
-  parts.push(`CAMERA STYLE: [you fill this — e.g. 85mm portrait, shallow depth of field]`);
-  parts.push(`PHOTOGRAPHY STYLE: [you fill this — e.g. lifestyle, editorial, commercial]`);
+  // Fields Gemini needs to fill for the 8-Layer Architecture
+  parts.push(`HAND PLACEMENT & MICRO-EXPRESSION: [you fill this — explicitly direct where the hands are and the specific micro-expression]`);
+  parts.push(`MATERIAL TEXTURE & FIT: [you fill this — explicitly describe fabric/clothing material and fit]`);
+  parts.push(`TECHNICAL PHOTOGRAPHY: [you fill this — specific camera body, lens, and aperture]`);
+  parts.push(`LIGHT PHYSICS: [you fill this — direction, quality, and bounce/fill]`);
+  parts.push(`FILM & COLOR SCIENCE: [you fill this — film stock, grading, tones]`);
+  parts.push(`QUALITY TERMINATOR: [you fill this — e.g., 8K resolution, hyperrealistic skin pores, magazine-quality, no artifacts, no distortion]`);
 
   return parts.join("\n");
 }
 
 // ─── Step 3: Generate final prompt ───────────────────────────────────────────
 
-const GENERATE_SYSTEM = `You are a NanoBanana Pro/2 image generation prompt writer.
+const GENERATE_SYSTEM = `You are an elite AI Image Prompt Director strictly following the 8-Layer Prompt Architecture.
 
-Your job: Take the structured brief below and write it as ONE flowing English prompt paragraph.
+Your job: Take the structured brief below and write it as ONE flowing English narrative prose paragraph (120-180 words) following these 8 Layers:
+Layer 1: Core Identity (who/what - from SUBJECT)
+Layer 2: Spatial Context (where/when - from BACKGROUND)
+Layer 3: Pose & Expression (how they exist in space - MUST include explicit hand placement & micro-expressions)
+Layer 4: Wardrobe & Material (what they wear - MUST include fabric texture & fit)
+Layer 5: Technical Photography (camera body, lens mm, aperture)
+Layer 6: Light Physics (primary light direction, quality, secondary fill)
+Layer 7: Film/Color Science (film stock, grading, grain)
+Layer 8: Quality Terminator (8K resolution, hyperrealistic, no artifacts, no distortion)
 
 ABSOLUTE RULES:
-1. Every field marked "LOCKED" MUST appear in the prompt exactly as written — they are already in English
-2. You ONLY fill in the fields marked [you fill this]
-3. Output ONLY the final prompt text — no labels, no explanation, no markdown, no quotes
-4. THE ENTIRE OUTPUT MUST BE IN ENGLISH — not a single word in Indonesian or any other language
-5. End with --seed [random 2-digit number] --ar 4:5
-6. If you change ANY locked element or write in Indonesian, the output is considered WRONG`;
+1. Every field marked "LOCKED" MUST appear in the prompt exactly as requested.
+2. You ONLY fill in the missing details using the 8-Layer guidelines to make it highly specific and professional.
+3. Use "Show, don't tell" (e.g., describe the light direction, don't just say "beautiful lighting").
+4. Output ONLY the final prompt text — no labels, no explanation, no markdown, no quotes.
+5. THE ENTIRE OUTPUT MUST BE IN ENGLISH.
+6. DO NOT append --seed or --ar parameters. End ONLY with the Layer 8 Quality Terminator.`;
 
 function formatHistory(history: ChatMessage[]): string {
   return history
