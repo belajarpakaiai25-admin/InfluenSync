@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import PhotoUpload, { type PhotoData } from "@/components/PhotoUpload";
 import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
@@ -15,6 +15,38 @@ function getKey(): string {
   const key = localStorage.getItem(LS_KEY)?.trim();
   if (!key) throw new Error("NO_API_KEY");
   return key;
+}
+
+// ─── API key store — localStorage sebagai sumber tunggal ─────────────────────
+// Dibaca lewat useSyncExternalStore supaya tidak perlu setState di dalam effect.
+
+const keyListeners = new Set<() => void>();
+
+function subscribeKey(listener: () => void) {
+  keyListeners.add(listener);
+  window.addEventListener("storage", listener); // sinkron antar tab
+  return () => {
+    keyListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
+function notifyKeyChanged() {
+  keyListeners.forEach((l) => l());
+}
+
+function readStoredKey(): string | null {
+  return localStorage.getItem(LS_KEY)?.trim() || null;
+}
+
+// Di server (dan saat hydration) key belum terbaca → undefined
+function readServerKey(): undefined {
+  return undefined;
+}
+
+function clearStoredKey() {
+  localStorage.removeItem(LS_KEY);
+  notifyKeyChanged();
 }
 
 // ─── API helpers — baca key dari localStorage langsung ───────────────────────
@@ -115,10 +147,8 @@ function InAppGuide() {
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AppPage() {
-  // API key — state untuk render, ref untuk selalu punya nilai terbaru di callbacks
-  const [apiKey, setApiKey]                     = useState<string | null>(null);
-  const [keyLoaded, setKeyLoaded]               = useState(false);
-  const apiKeyRef                               = useRef<string | null>(null);
+  // API key — undefined = belum terbaca, null = belum ada key
+  const apiKey = useSyncExternalStore(subscribeKey, readStoredKey, readServerKey);
 
   const [photoData, setPhotoData]               = useState<PhotoData | null>(null);
   const [photoDescription, setPhotoDescription] = useState<string | null>(null);
@@ -132,25 +162,13 @@ export default function AppPage() {
   const [isGenerating, setIsGenerating]         = useState(false);
   const [generateError, setGenerateError]       = useState<string | null>(null);
 
-  // Load API key dari localStorage, simpan ke ref juga
-  useEffect(() => {
-    const saved = localStorage.getItem(LS_KEY);
-    if (saved) {
-      setApiKey(saved);
-      apiKeyRef.current = saved;
-    }
-    setKeyLoaded(true);
-  }, []);
-
-  const handleKeySaved = useCallback((key: string) => {
-    setApiKey(key);
-    apiKeyRef.current = key; // langsung update ref tanpa tunggu re-render
+  // ApiKeySetup sudah menyimpan key ke localStorage — cukup kabari store
+  const handleKeySaved = useCallback(() => {
+    notifyKeyChanged();
   }, []);
 
   const handleChangeKey = useCallback(() => {
-    localStorage.removeItem(LS_KEY);
-    setApiKey(null);
-    apiKeyRef.current = null;
+    clearStoredKey();
   }, []);
 
   // ── Reset semua state (Task 7.2) ──────────────────────────────────────────
@@ -196,8 +214,7 @@ export default function AppPage() {
       const msg = err instanceof Error ? err.message : "Gagal menganalisis foto";
       // Kalau key tidak ada → paksa kembali ke setup screen
       if (msg === "NO_API_KEY") {
-        setApiKey(null);
-        apiKeyRef.current = null;
+        clearStoredKey();
         return;
       }
       setAnalyzeError(`${msg}. Pastikan foto jelas, wajah terlihat, lalu coba lagi.`);
@@ -205,7 +222,7 @@ export default function AppPage() {
       setIsAnalyzing(false);
       setIsChatLoading(false);
     }
-  }, [apiKey]);
+  }, []);
 
   const handlePhotoCleared = useCallback(() => {
     handleReset();
@@ -227,7 +244,7 @@ export default function AppPage() {
         setMessages((prev) => [...prev, { role: "ai", content: reply }]);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Terjadi kesalahan";
-        if (msg === "NO_API_KEY") { setApiKey(null); apiKeyRef.current = null; return; }
+        if (msg === "NO_API_KEY") { clearStoredKey(); return; }
         setChatError(msg);
         setMessages((prev) => [
           ...prev,
@@ -237,7 +254,7 @@ export default function AppPage() {
         setIsChatLoading(false);
       }
     },
-    [photoDescription, messages, isChatLoading, apiKey]
+    [photoDescription, messages, isChatLoading]
   );
 
   // ── Generate prompt ───────────────────────────────────────────────────────
@@ -253,13 +270,13 @@ export default function AppPage() {
       setUserRequirements(reqs);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Gagal generate prompt";
-      if (msg === "NO_API_KEY") { setApiKey(null); apiKeyRef.current = null; return; }
+      if (msg === "NO_API_KEY") { clearStoredKey(); return; }
       setGenerateError(`${msg}. Coba lagi atau tambah detail di chat terlebih dahulu.`);
       setGeneratedPrompt(null);
     } finally {
       setIsGenerating(false);
     }
-  }, [photoDescription, messages, isGenerating, apiKey]);
+  }, [photoDescription, messages, isGenerating]);
 
   // ── Computed states ───────────────────────────────────────────────────────
   const isReady       = !!photoDescription && !isAnalyzing;
@@ -275,7 +292,7 @@ export default function AppPage() {
   ];
 
   // Tunggu localStorage terbaca dulu (hindari flash)
-  if (!keyLoaded) return null;
+  if (apiKey === undefined) return null;
 
   // Belum ada API key → tampilkan setup screen
   if (!apiKey) return <ApiKeySetup onKeySaved={handleKeySaved} />;

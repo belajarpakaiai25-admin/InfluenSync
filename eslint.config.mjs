@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Folder referensi eksternal (gitignored), bukan kode aplikasi:
+    "context-engineering-intro/**",
   ]),
 ]);
 
